@@ -1,0 +1,4 @@
+{"key": "d3a6d84d42e01aa88cbde1928d6ea59a484b48ad99106f61a1dd1440693a7c59", "model": "gemini-3.1-flash-lite", "provider": "gemini", "id": "demo:read_page", "verdict": true, "latency_ms": 988.2, "date": "2026-11-17"}
+{"key": "d5e2fefef5c88e5b8bcb5acdb10abc733124b927f5c35db1591dd358dd18e7d7", "model": "gemini-3.1-flash-lite", "provider": "gemini", "id": "demo", "verdict": false, "latency_ms": 1077.7, "date": "2026-11-17"}
+{"key": "8546069d60953471ee938545b332b934e5ef3da622d83a78639819f009f2e0de", "model": "gemini-3.1-flash-lite", "provider": "gemini", "id": "demo", "verdict": false, "latency_ms": 1022.0, "date": "2026-11-17"}
+{"key": "3d1f07079dcb8884acc0369f4ff834a0dd3ededf45077049ae9cd44248364d96", "model": "gemini-3.1-flash-lite", "provider": "gemini", "id": "demo", "verdict": false, "latency_ms": 2630.7, "date": "2026-11-17"}

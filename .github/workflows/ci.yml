@@ -13,3 +13,4 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -s tests -t . -v
       - run: python eval/measure.py
+      - run: python -m mcp_firewall demo --replay

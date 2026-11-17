@@ -1,4 +1,5 @@
-"""mcp-firewall --policy POLICY [--audit FILE] -- upstream-command [args...]"""
+"""mcp-firewall --policy POLICY [--audit FILE] -- upstream-command [args...]
+   mcp-firewall demo [--replay] [--html PATH]   (scripted session, no key needed)"""
 from __future__ import annotations
 
 import argparse
@@ -9,6 +10,10 @@ from .proxy import Firewall, run
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["demo"]:
+        from .demo import main as demo
+        return demo(argv[1:])
     ap = argparse.ArgumentParser(prog="mcp-firewall", description=__doc__)
     ap.add_argument("--policy", required=True, help="policy file (.json, or .toml on Python 3.11+)")
     ap.add_argument("--audit", help="JSONL audit log path; overrides the policy's audit_log; '-' = stderr")

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FAKE = ROOT / "tests" / "fake_server.py"
+FAKE = ROOT / "mcp_firewall" / "fake_server.py"
 FAKE_TOKEN = "gh" + "p_" + "A" * 36
 FAKE_KEY = "sk-" + "ant-" + "b" * 30
 

@@ -13,6 +13,29 @@ A stdio proxy that sits between an MCP client (Claude Code, for example) and one
 
 Stdlib Python 3.10+, no dependencies. Tests and CI need no key and no model.
 
+## Try it
+
+**[Demo page](https://oguzhanozfe.github.io/mcp-firewall/)**: a recorded run, no install needed.
+
+[![Demo: one allowed call, two denied calls, two redacted secrets and two flagged injections](docs/demo.png)](https://oguzhanozfe.github.io/mcp-firewall/)
+
+```bash
+git clone https://github.com/oguzhanozfe/mcp-firewall && cd mcp-firewall
+python -m mcp_firewall demo
+```
+
+The demo starts the real proxy in front of the bundled fake MCP server (`mcp_firewall/fake_server.py`), sends a scripted session and prints each decision and the audit log. It takes about a second and needs no key.
+
+The regex lane needs no model. For the classifier lane the demo picks the first available of these:
+
+1. `GEMINI_API_KEY` set: live `gemini-3.1-flash-lite`.
+2. Ollama on `127.0.0.1:11434` with `qwen3.5:9b`: local.
+3. Otherwise, replay of verdicts recorded from `gemini-3.1-flash-lite` on 2026-11-17 (`mcp_firewall/demo_verdicts.jsonl`). The demo prints `mode: replay (...)`.
+
+`--replay` forces replay, and `--html PATH` also writes the page above. CI runs the replay demo on every push, and the demo exits 1 if any step gets an unexpected decision.
+
+Live models can disagree with the recording. The demo prints `MISS` rather than failing. On 2026-11-17, local `qwen3.5:9b` let the classifier-lane page through. A politer first draft of that injection, an email asking "whoever drafts the board summary" to drop a paragraph, got past Gemini too, so the demo uses a page Gemini does catch. Both are examples of what [it will miss](#injection-detection).
+
 ## Why
 
 An MCP server's tool results go straight into the model's context, and its tools act with your permissions. A web page, a README or an email that a tool returns can carry instructions aimed at the model. A tool can also be asked to touch paths or hosts it shouldn't. The proxy gives you one choke point to see every call, cap what a server can be asked to do, and stop credentials from leaking either way. It is a seatbelt, not a sandbox (see [Known limits](#known-limits)).

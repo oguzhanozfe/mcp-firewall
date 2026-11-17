@@ -28,7 +28,7 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from mcp_firewall.classifier import SYSTEM, Classifier  # noqa: E402
+from mcp_firewall.classifier import Classifier, cache_key  # noqa: E402
 from mcp_firewall.injection import THRESHOLD, scan  # noqa: E402
 
 HERE = Path(__file__).parent
@@ -36,10 +36,6 @@ SETS = {"dev": ["dev_hand", "dev_qwen", "dev_extra"], "heldout": ["heldout_v2"]}
 BLIND = {"heldout"}
 SAMPLE_PER_CELL = 2
 CACHE = HERE / "runs" / "classifier_cache.jsonl"
-
-
-def cache_key(model: str, text: str, max_chars: int = 6000) -> str:
-    return hashlib.sha256(f"{model}\0{SYSTEM}\0{text[:max_chars]}".encode()).hexdigest()
 
 
 def load_cache() -> dict[str, dict]:
