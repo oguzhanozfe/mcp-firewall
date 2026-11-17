@@ -1,0 +1,21 @@
+{
+  "tools": {
+    "allow": ["read_*", "list_*", "search_*", "get_*"],
+    "deny": ["*delete*", "*write*"]
+  },
+  "per_tool": {
+    "read_*": {
+      "args": {"path": {"path_prefix": ["/workspace"], "max_length": 1024}},
+      "rate_limit": {"calls": 30, "per_seconds": 60}
+    },
+    "search_*": {
+      "args": {"query": {"max_length": 500}}
+    },
+    "get_url": {
+      "args": {"url": {"regex": "https://[A-Za-z0-9.-]+(/[^\\s]*)?"}}
+    }
+  },
+  "redact": {"enabled": true, "extra_patterns": []},
+  "injection": {"action": "annotate"},
+  "audit_log": "mcp-firewall-audit.jsonl"
+}

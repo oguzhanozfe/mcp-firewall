@@ -1,0 +1,18 @@
+[project]
+name = "mcp-firewall"
+version = "0.1.0"
+description = "Stdio proxy that enforces a tool policy, redacts secrets and flags prompt injection between an MCP client and server"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+mcp-firewall = "mcp_firewall.__main__:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mcp_firewall"]
