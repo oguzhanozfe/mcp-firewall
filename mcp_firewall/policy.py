@@ -115,36 +115,68 @@ def _compile(pattern: str, where: str) -> re.Pattern[str]:
         raise PolicyError(f"{where}: bad regex {pattern!r}: {e}") from None
 
 
+def _obj(d: Any, where: str, allowed: set[str]) -> dict[str, Any]:
+    """Every level is checked, so a typo ("allowlist", "arg") fails loudly instead of open."""
+    if not isinstance(d, dict):
+        raise PolicyError(f"{where}: must be an object")
+    if unknown := set(d) - allowed:
+        raise PolicyError(f"{where}: unknown keys {sorted(unknown)}")
+    return d
+
+
+def _strs(v: Any, where: str) -> list[str]:
+    if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+        raise PolicyError(f"{where}: must be a list of strings")
+    return v
+
+
+def _num(v: Any, where: str, minimum: float, integer: bool = False) -> float:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or (integer and not isinstance(v, int)) or v < minimum:
+        raise PolicyError(f"{where}: must be a {'whole ' if integer else ''}number >= {minimum}")
+    return v
+
+
 def from_dict(d: dict[str, Any], clock: Callable[[], float] = time.monotonic) -> Policy:
-    known = {"tools", "per_tool", "redact", "injection", "audit_log"}
-    if unknown := set(d) - known:
-        raise PolicyError(f"unknown top-level keys: {sorted(unknown)}")
-    tools = d.get("tools", {})
-    pol = Policy(allow=tools.get("allow"), deny=tools.get("deny", []))
-    for tool, spec in d.get("per_tool", {}).items():
+    _obj(d, "policy", {"tools", "per_tool", "redact", "injection", "audit_log"})
+    tools = _obj(d.get("tools", {}), "tools", {"allow", "deny"})
+    pol = Policy(allow=_strs(tools["allow"], "tools.allow") if "allow" in tools else None,
+                 deny=_strs(tools.get("deny", []), "tools.deny"))
+    for tool, spec in _obj(d.get("per_tool", {}), "per_tool", set(d.get("per_tool") or {})).items():
+        w = f"per_tool.{tool}"
+        spec = _obj(spec, w, {"args", "rate_limit"})
         rules = {}
-        for arg, r in spec.get("args", {}).items():
-            where = f"per_tool.{tool}.args.{arg}"
-            if unknown := set(r) - {"regex", "path_prefix", "max_length"}:
-                raise PolicyError(f"{where}: unknown keys {sorted(unknown)}")
+        for arg, r in _obj(spec.get("args", {}), f"{w}.args", set(spec.get("args") or {})).items():
+            wa = f"{w}.args.{arg}"
+            r = _obj(r, wa, {"regex", "path_prefix", "max_length"})
             prefixes = r.get("path_prefix", [])
+            prefixes = [prefixes] if isinstance(prefixes, str) else _strs(prefixes, f"{wa}.path_prefix")
+            if any(not p.startswith("/") for p in prefixes):
+                raise PolicyError(f"{wa}.path_prefix: prefixes must be absolute paths")
+            if "regex" in r and not isinstance(r["regex"], str):
+                raise PolicyError(f"{wa}.regex: must be a string")
             rules[arg] = ArgRule(
-                regex=_compile(r["regex"], where) if "regex" in r else None,
-                path_prefix=[prefixes] if isinstance(prefixes, str) else list(prefixes),
-                max_length=r.get("max_length"),
+                regex=_compile(r["regex"], wa) if "regex" in r else None,
+                path_prefix=prefixes,
+                max_length=int(_num(r["max_length"], f"{wa}.max_length", 0, True)) if "max_length" in r else None,
             )
         pol.args[tool] = rules
-        if rl := spec.get("rate_limit"):
-            if int(rl["calls"]) < 1 or float(rl["per_seconds"]) <= 0:
-                raise PolicyError(f"per_tool.{tool}.rate_limit must have calls >= 1 and per_seconds > 0")
-            pol.limits[tool] = RateLimiter(int(rl["calls"]), float(rl["per_seconds"]), clock)
-    red = d.get("redact", {})
+        if "rate_limit" in spec:
+            rl = _obj(spec["rate_limit"], f"{w}.rate_limit", {"calls", "per_seconds"})
+            if set(rl) != {"calls", "per_seconds"}:
+                raise PolicyError(f"{w}.rate_limit: needs both calls and per_seconds")
+            pol.limits[tool] = RateLimiter(int(_num(rl["calls"], f"{w}.rate_limit.calls", 1, True)),
+                                           float(_num(rl["per_seconds"], f"{w}.rate_limit.per_seconds", 0.001)), clock)
+    red = _obj(d.get("redact", {}), "redact", {"enabled", "extra_patterns"})
+    if not isinstance(red.get("enabled", True), bool):
+        raise PolicyError("redact.enabled: must be true or false")
     pol.redact = red.get("enabled", True)
-    pol.redact_extra = [_compile(p, "redact.extra_patterns") for p in red.get("extra_patterns", [])]
-    pol.injection = d.get("injection", {}).get("action", "annotate")
+    pol.redact_extra = [_compile(p, "redact.extra_patterns") for p in _strs(red.get("extra_patterns", []), "redact.extra_patterns")]
+    pol.injection = _obj(d.get("injection", {}), "injection", {"action"}).get("action", "annotate")
     if pol.injection not in INJECTION_ACTIONS:
         raise PolicyError(f"injection.action must be one of {INJECTION_ACTIONS}")
     pol.audit_log = d.get("audit_log")
+    if pol.audit_log is not None and not isinstance(pol.audit_log, str):
+        raise PolicyError("audit_log: must be a string path")
     return pol
 
 

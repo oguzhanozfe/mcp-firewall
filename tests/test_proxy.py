@@ -98,7 +98,7 @@ class ProxyTest(unittest.TestCase):
         got = r["structuredContent"]
         self.assertNotIn(FAKE_KEY, json.dumps(r))
         self.assertIn("[REDACTED:openai_or_anthropic_key]", got["note"])
-        self.assertEqual(got["password"], "hunter2hunter2")  # plain value; only key=value text shapes match
+        self.assertEqual(got["password"], "[REDACTED:sensitive_key]")  # sensitive key name, any value
         # inbound
         text = self.px.call("leaky")["content"][0]["text"]
         self.assertNotIn(FAKE_TOKEN, text)
@@ -106,6 +106,7 @@ class ProxyTest(unittest.TestCase):
         _, audit = self.px.close()
         self.assertNotIn(FAKE_KEY, json.dumps(audit))
         self.assertNotIn(FAKE_TOKEN, json.dumps(audit))
+        self.assertNotIn("hunter2hunter2", json.dumps(audit))
 
     def test_injection_annotated(self):
         content = self.px.call("web_fetch")["content"]

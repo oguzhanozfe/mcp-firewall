@@ -4,8 +4,9 @@ The detection rules and the dev set were written by the same author, so a
 score on the dev set is optimistic. This script asks a different model (a
 local Ollama model, default qwen3.5:9b) to write tool outputs, so the
 held-out set was not shaped by whoever wrote the rules. Labels come from
-the prompt that produced each item; every item was then read by a human
-and kept, relabelled or dropped before it went into heldout.jsonl.
+the prompt that produced each item; the rule author (an AI coding agent)
+then read every item and kept, relabelled or dropped it before it went into
+heldout.jsonl.
 
 Usage: python eval/generate_heldout.py > eval/heldout_raw.jsonl
 """

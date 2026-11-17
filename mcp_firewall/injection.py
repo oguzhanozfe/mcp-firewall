@@ -47,8 +47,11 @@ RULES = [
     Rule("addressed_to_ai", 2, re.compile(
         r"(?im)(?:\b(?:attention|note|dear|hey|hello|hi)\s*,?\s*(?:to\s+)?(?:any|all|the)?\s*" + _AI + r"\b"
         r"|\b(?:if|when)\s+you\s+are\s+an?\s+" + _AI + r"\b"
-        r"|(?:^|<!--|\n)\s*(?:dear\s+)?(?:AI\s+)?" + _AI + r"\s*[:,]\s"
-        r"|\b" + _AI + r"\s+(?:that\s+(?:are|is)\s+)?(?:reading|processing|summari[sz]ing|parsing|seeing)\b"
+        # Vocative at line start. Bare "model:"/"assistant:" are config keys and transcripts, so only
+        # "AI ...", named models and "dear assistant" count.
+        r"|(?:^|<!--)\s*(?:dear\s+(?:AI\s+)?(?:assistant|agent|model)|AI(?:\s+(?:assistant|agent|model))?|LLMs?|Claude|ChatGPT|Gemini|Copilot)s?\s*[:,]\s"
+        r"|\b" + _AI + r"\s+(?:that\s+(?:are|is)\s+)?(?:reading|processing|summari[sz]ing|parsing|seeing)\s+"
+        r"(?:this|these|the|that|my|our|any|reviews?|pages?|documents?|emails?|content)\b"
         r"|\b(?:to|for)\s+the\s+" + _AI + r"\s+(?:reading|processing|summari[sz]ing)\b)")),
     Rule("conceal_from_user", 2, re.compile(
         r"(?i)\b(?:do\s+not|don'?t|never|without)\s+(?:tell(?:ing)?|inform(?:ing)?|mention(?:ing)?|reveal(?:ing)?|"
@@ -85,6 +88,7 @@ RULES = [
 ]
 
 THRESHOLD = 2
+RULES_BY_NAME = {r.name: r for r in RULES}
 
 
 @dataclass

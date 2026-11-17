@@ -27,8 +27,17 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         r"(?P<value>[^\s'\",;]{8,})")),
 ]
 
-# Keys whose string values are binary payloads (base64 images, blobs); never rewritten.
-BINARY_KEYS = {"data", "blob"}
+# Object keys whose whole string value is treated as a secret, whatever it looks like.
+SENSITIVE_KEY = re.compile(
+    r"(?i)(?:password|passwd|pwd|passphrase|secret|client[_-]?secret|api[_-]?key|access[_-]?token|"
+    r"auth[_-]?token|refresh[_-]?token|bearer[_-]?token|private[_-]?key|authorization|cookie)")
+
+
+def is_binary(parent: dict, key: str) -> bool:
+    """True for base64 payloads the spec defines: image/audio `data` and resource `blob`."""
+    if key == "data":
+        return parent.get("type") in ("image", "audio")
+    return key == "blob" and "uri" in parent
 
 
 def redact_text(text: str, extra: list[re.Pattern[str]] = ()) -> tuple[str, list[str]]:
@@ -50,15 +59,22 @@ def redact(value: Any, extra: list[re.Pattern[str]] = ()) -> tuple[Any, list[str
     """Redact every string leaf of a JSON value. Returns (new value, hit names)."""
     hits: list[str] = []
 
-    def walk(v: Any, key: str | None = None) -> Any:
+    def walk(v: Any) -> Any:
         if isinstance(v, str):
-            if key in BINARY_KEYS:
-                return v
             new, h = redact_text(v, extra)
             hits.extend(h)
             return new
         if isinstance(v, dict):
-            return {k: walk(x, k) for k, x in v.items()}
+            out = {}
+            for k, x in v.items():
+                if isinstance(x, str) and is_binary(v, k):
+                    out[k] = x
+                elif isinstance(x, str) and x and SENSITIVE_KEY.fullmatch(k):
+                    hits.append("sensitive_key")
+                    out[k] = "[REDACTED:sensitive_key]"
+                else:
+                    out[k] = walk(x)
+            return out
         if isinstance(v, list):
             return [walk(x) for x in v]
         return v
