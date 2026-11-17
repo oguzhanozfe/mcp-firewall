@@ -11,6 +11,8 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any, Callable
 
+from .classifier import Classifier
+
 INJECTION_ACTIONS = ("off", "flag", "annotate", "strip", "block")
 
 
@@ -73,6 +75,7 @@ class Policy:
     redact: bool = True
     redact_extra: list[re.Pattern[str]] = field(default_factory=list)
     injection: str = "annotate"
+    classifier: Classifier | None = None  # optional local-model lane, off by default
     audit_log: str | None = None
 
     def tool_allowed(self, tool: str) -> bool:
@@ -171,7 +174,22 @@ def from_dict(d: dict[str, Any], clock: Callable[[], float] = time.monotonic) ->
         raise PolicyError("redact.enabled: must be true or false")
     pol.redact = red.get("enabled", True)
     pol.redact_extra = [_compile(p, "redact.extra_patterns") for p in _strs(red.get("extra_patterns", []), "redact.extra_patterns")]
-    pol.injection = _obj(d.get("injection", {}), "injection", {"action"}).get("action", "annotate")
+    inj = _obj(d.get("injection", {}), "injection", {"action", "classifier"})
+    pol.injection = inj.get("action", "annotate")
+    if "classifier" in inj:
+        c = _obj(inj["classifier"], "injection.classifier",
+                 {"provider", "model", "base_url", "api_key_env", "timeout_s", "max_chars"})
+        for k in ("provider", "model", "base_url", "api_key_env"):
+            if k in c and not isinstance(c[k], str):
+                raise PolicyError(f"injection.classifier.{k}: must be a string")
+        try:
+            pol.classifier = Classifier(
+                provider=c.get("provider", "gemini"), model=c.get("model"), base_url=c.get("base_url"),
+                api_key_env=c.get("api_key_env"),
+                timeout_s=float(_num(c.get("timeout_s", 30), "injection.classifier.timeout_s", 0.1)),
+                max_chars=int(_num(c.get("max_chars", 6000), "injection.classifier.max_chars", 1, True)))
+        except ValueError as e:
+            raise PolicyError(f"injection.classifier: {e}") from None
     if pol.injection not in INJECTION_ACTIONS:
         raise PolicyError(f"injection.action must be one of {INJECTION_ACTIONS}")
     pol.audit_log = d.get("audit_log")

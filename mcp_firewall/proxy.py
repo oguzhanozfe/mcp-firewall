@@ -158,7 +158,19 @@ class Firewall:
         action = self.policy.injection
         if action == "off":
             return result, decision
-        found = injection.scan("\n".join(_strings({k: v for k, v in result.items() if k != "_meta"})))
+        text = "\n".join(_strings({k: v for k, v in result.items() if k != "_meta"}))
+        found = injection.scan(text)
+        clf = self.policy.classifier
+        if not found.flagged and clf and text.strip():
+            try:
+                verdict, ms = clf.classify(text)
+                event["classifier_ms"] = round(ms)
+                if verdict:
+                    found.rules.append("classifier")
+                    found.score += injection.THRESHOLD
+            except (OSError, ValueError, KeyError) as e:
+                # Fails open: an unreachable classifier must not take the tool down. It is logged.
+                event["classifier_error"] = f"{type(e).__name__}: {e}"[:200]
         if not found.flagged:
             return result, decision
         event["injection"] = {"score": found.score, "rules": found.rules, "action": action}
@@ -167,7 +179,7 @@ class Firewall:
             return result, "flag"
         if action == "block":
             return _tool_error(msg_id, f"blocked a tool result that matched prompt-injection heuristics ({rules})")["result"], "block"
-        stripped = any(injection.RULES_BY_NAME[r].strip for r in found.rules)
+        stripped = any(injection.RULES_BY_NAME[r].strip for r in found.rules if r in injection.RULES_BY_NAME)
         if action == "strip":
             result = {k: (v if k == "_meta" else _map_strings(v, injection.strip)) for k, v in result.items()}
         warning = (f"{NOTE} Warning: this tool result matched prompt-injection heuristics ({rules})"

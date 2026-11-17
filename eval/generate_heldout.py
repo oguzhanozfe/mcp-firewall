@@ -1,4 +1,4 @@
-"""Generate a held-out set of tool outputs with a local model.
+"""Generate labelled tool outputs with a local model (round 1 held-out set, now dev_qwen.jsonl).
 
 The detection rules and the dev set were written by the same author, so a
 score on the dev set is optimistic. This script asks a different model (a
@@ -6,9 +6,10 @@ local Ollama model, default qwen3.5:9b) to write tool outputs, so the
 held-out set was not shaped by whoever wrote the rules. Labels come from
 the prompt that produced each item; the rule author (an AI coding agent)
 then read every item and kept, relabelled or dropped it before it went into
-heldout.jsonl.
+dev_qwen.jsonl. It moved from held-out to dev in round 2,
+after its misses had been read; the current held-out set is heldout_v2.jsonl.
 
-Usage: python eval/generate_heldout.py > eval/heldout_raw.jsonl
+Usage: python eval/generate_heldout.py > eval/dev_qwen_raw.jsonl
 """
 from __future__ import annotations
 
